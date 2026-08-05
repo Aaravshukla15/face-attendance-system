@@ -22,3 +22,5 @@ class EmployeeAdmin(admin.ModelAdmin):
         "department",
         "is_active",
     )
+    
+    # [{'username': 'companyadmin', 'email': 'company@gmail.com', password: admin@12}]
