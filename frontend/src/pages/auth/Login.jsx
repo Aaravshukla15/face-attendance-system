@@ -1,9 +1,13 @@
 import { useState } from "react";
 import { login } from "../../services/authService";
+import { useAuth } from "../../hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const { loginUser } = useAuth();
+  const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -12,10 +16,9 @@ export default function Login() {
       const data = await login(username, password);
 
       console.log(data);
-      localStorage.setItem("access", data.access);
-      localStorage.setItem("refresh", data.refresh);
+      loginUser(data.access, data.refresh);
 
-      alert("Login Successful!");
+      navigate("/dashboard");
       setUsername("");
       setPassword("");
     } catch (error) {
