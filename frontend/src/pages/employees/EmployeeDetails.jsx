@@ -56,7 +56,10 @@ export default function EmployeeDetails() {
           Back
         </button>
 
-        <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition">
+        <button
+          onClick={() => navigate(`/employees/edit/${employee.id}`)}
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition"
+        >
           <Pencil size={18} />
           Edit
         </button>

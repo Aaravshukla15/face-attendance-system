@@ -19,6 +19,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+        read_only_fields = ["employee_id", "created_at", "updated_at"]
 
     def validate_phone(self, value):
         if value:

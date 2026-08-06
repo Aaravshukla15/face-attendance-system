@@ -7,20 +7,23 @@ import ProtectedRoute from "../components/ProtectedRoute";
 import DashboardLayout from "../layouts/DashboardLayout";
 
 import EmployeeList from "../pages/employees/EmployeeList";
+import EmployeeDetails from "../pages/employees/EmployeeDetails";
+import EditEmployee from "../pages/employees/EditEmployee";
+import AddEmployee from "../pages/employees/AddEmployee";
+
 import Attendance from "../pages/attendance/Attendance";
 import Reports from "../pages/reports/Reports";
 import Settings from "../pages/settings/Settings";
-import EmployeeDetails from "../pages/employees/EmployeeDetails";
 
 export default function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public */}
+        {/* Public Routes */}
 
         <Route path="/" element={<Login />} />
 
-        {/* Protected */}
+        {/* Protected Routes */}
 
         <Route
           element={
@@ -31,13 +34,25 @@ export default function AppRoutes() {
         >
           <Route path="/dashboard" element={<Dashboard />} />
 
+          {/* Employee Routes */}
+
           <Route path="/employees" element={<EmployeeList />} />
+
+          <Route path="/employees/add" element={<AddEmployee />} />
+
+          <Route path="/employees/edit/:id" element={<EditEmployee />} />
 
           <Route path="/employees/:id" element={<EmployeeDetails />} />
 
+          {/* Attendance */}
+
           <Route path="/attendance" element={<Attendance />} />
 
+          {/* Reports */}
+
           <Route path="/reports" element={<Reports />} />
+
+          {/* Settings */}
 
           <Route path="/settings" element={<Settings />} />
         </Route>

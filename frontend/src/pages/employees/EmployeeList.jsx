@@ -7,6 +7,10 @@ export default function EmployeeList() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Input typed by user
+  const [searchInput, setSearchInput] = useState("");
+
+  // Actual search sent to backend
   const [search, setSearch] = useState("");
 
   const [page, setPage] = useState(1);
@@ -24,14 +28,11 @@ export default function EmployeeList() {
       try {
         setLoading(true);
 
-        const data = await getEmployees(search, page);
+        const data = await getEmployees(page, search);
 
         setEmployees(data.results);
-
         setCount(data.count);
-
         setNext(data.next);
-
         setPrevious(data.previous);
       } catch (error) {
         console.error(error);
@@ -53,16 +54,42 @@ export default function EmployeeList() {
 
       {/* Search */}
       <div className="bg-white rounded-xl shadow p-4 mb-6">
-        <input
-          type="text"
-          placeholder="Search employee..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          className="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-        />
+        <div className="flex gap-3">
+          <input
+            type="text"
+            placeholder="Search employee..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                setSearch(searchInput);
+                setPage(1);
+              }
+            }}
+            className="flex-1 border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+          />
+
+          <button
+            onClick={() => {
+              setSearch(searchInput);
+              setPage(1);
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 rounded-lg"
+          >
+            Search
+          </button>
+
+          <button
+            onClick={() => {
+              setSearch("");
+              setSearchInput("");
+              setPage(1);
+            }}
+            className="bg-gray-600 hover:bg-gray-700 text-white px-6 rounded-lg"
+          >
+            Clear
+          </button>
+        </div>
       </div>
 
       {/* Table */}
@@ -114,7 +141,10 @@ export default function EmployeeList() {
                       View
                     </button>
 
-                    <button className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded">
+                    <button
+                      onClick={() => navigate(`/employees/edit/${employee.id}`)}
+                      className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded"
+                    >
                       Edit
                     </button>
                   </div>
