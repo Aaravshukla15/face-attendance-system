@@ -2,15 +2,16 @@ import { useEffect, useState } from "react";
 import EmployeeHeader from "../../components/employees/EmployeeHeader";
 import { getEmployees } from "../../services/employeeService";
 import { useNavigate } from "react-router-dom";
+import { Eye, Pencil } from "lucide-react";
 
 export default function EmployeeList() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Input typed by user
+  // Search Input
   const [searchInput, setSearchInput] = useState("");
 
-  // Actual search sent to backend
+  // Actual Search Query
   const [search, setSearch] = useState("");
 
   const [page, setPage] = useState(1);
@@ -45,7 +46,11 @@ export default function EmployeeList() {
   }, [search, page]);
 
   if (loading) {
-    return <h2>Loading Employees...</h2>;
+    return (
+      <div className="flex justify-center items-center h-72">
+        <h2 className="text-xl font-semibold">Loading Employees...</h2>
+      </div>
+    );
   }
 
   return (
@@ -53,11 +58,12 @@ export default function EmployeeList() {
       <EmployeeHeader />
 
       {/* Search */}
+
       <div className="bg-white rounded-xl shadow p-4 mb-6">
-        <div className="flex gap-3">
+        <div className="flex flex-col md:flex-row gap-3">
           <input
             type="text"
-            placeholder="Search employee..."
+            placeholder="Search by Employee ID, Name, Department..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => {
@@ -74,7 +80,7 @@ export default function EmployeeList() {
               setSearch(searchInput);
               setPage(1);
             }}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 rounded-lg"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg"
           >
             Search
           </button>
@@ -85,83 +91,124 @@ export default function EmployeeList() {
               setSearchInput("");
               setPage(1);
             }}
-            className="bg-gray-600 hover:bg-gray-700 text-white px-6 rounded-lg"
+            className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg"
           >
             Clear
           </button>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow overflow-hidden">
+      {/* Employee Table */}
+
+      <div className="bg-white rounded-xl shadow overflow-x-auto">
         <table className="min-w-full">
           <thead>
             <tr className="bg-slate-100 text-gray-700 uppercase text-sm">
-              <th className="p-3 text-left">Employee ID</th>
-              <th className="p-3 text-left">Name</th>
-              <th className="p-3 text-left">Department</th>
-              <th className="p-3 text-left">Designation</th>
-              <th className="p-3 text-left">Status</th>
-              <th className="p-3 text-left">Actions</th>
+              <th className="p-4 text-left">Employee</th>
+
+              <th className="p-4 text-left">Department</th>
+
+              <th className="p-4 text-left">Designation</th>
+
+              <th className="p-4 text-left">Status</th>
+
+              <th className="p-4 text-center">Actions</th>
             </tr>
           </thead>
 
           <tbody>
-            {employees.map((employee) => (
-              <tr
-                key={employee.id}
-                className="border-t hover:bg-gray-50 transition"
-              >
-                <td className="p-3">{employee.employee_id}</td>
+            {employees.length > 0 ? (
+              employees.map((employee) => (
+                <tr
+                  key={employee.id}
+                  className="border-t hover:bg-gray-50 transition"
+                >
+                  {/* Employee */}
 
-                <td className="p-3">{employee.name}</td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-4">
+                      {employee.photo ? (
+                        <img
+                          src={employee.photo}
+                          alt={employee.name}
+                          className="w-12 h-12 rounded-full object-cover border"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-slate-700 text-white flex items-center justify-center font-bold">
+                          {employee.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
 
-                <td className="p-3">{employee.department}</td>
+                      <div>
+                        <p className="font-semibold text-gray-800">
+                          {employee.name}
+                        </p>
 
-                <td className="p-3">{employee.designation}</td>
+                        <p className="text-sm text-gray-500">
+                          {employee.employee_id}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
 
-                <td className="p-3">
-                  {employee.is_active ? (
-                    <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm">
-                      Active
-                    </span>
-                  ) : (
-                    <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm">
-                      Inactive
-                    </span>
-                  )}
-                </td>
+                  <td className="p-4">{employee.department}</td>
 
-                <td className="p-3">
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => navigate(`/employees/${employee.id}`)}
-                      className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
-                    >
-                      View
-                    </button>
+                  <td className="p-4">{employee.designation}</td>
 
-                    <button
-                      onClick={() => navigate(`/employees/edit/${employee.id}`)}
-                      className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded"
-                    >
-                      Edit
-                    </button>
-                  </div>
+                  <td className="p-4">
+                    {employee.is_active ? (
+                      <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
+                        Active
+                      </span>
+                    ) : (
+                      <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-medium">
+                        Inactive
+                      </span>
+                    )}
+                  </td>
+
+                  <td className="p-4">
+                    <div className="flex justify-center gap-3">
+                      <button
+                        onClick={() => navigate(`/employees/${employee.id}`)}
+                        className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-lg"
+                        title="View Employee"
+                      >
+                        <Eye size={18} />
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          navigate(`/employees/edit/${employee.id}`)
+                        }
+                        className="bg-yellow-500 hover:bg-yellow-600 text-white p-2 rounded-lg"
+                        title="Edit Employee"
+                      >
+                        <Pencil size={18} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="5" className="text-center py-10 text-gray-500">
+                  No employees found.
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
 
       {/* Pagination */}
-      <div className="flex justify-between items-center mt-6">
+
+      <div className="flex flex-col md:flex-row justify-between items-center mt-6 gap-4">
         <p className="text-gray-600">
-          Total Employees: <strong>{count}</strong>
+          Total Employees : <strong>{count}</strong>
         </p>
 
-        <div className="flex gap-3">
+        <div className="flex items-center gap-3">
           <button
             disabled={!previous}
             onClick={() => setPage((prev) => prev - 1)}
@@ -174,7 +221,7 @@ export default function EmployeeList() {
             Previous
           </button>
 
-          <span className="flex items-center font-semibold">Page {page}</span>
+          <span className="font-semibold">Page {page}</span>
 
           <button
             disabled={!next}

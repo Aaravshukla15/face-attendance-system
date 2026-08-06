@@ -69,11 +69,17 @@ export default function EmployeeDetails() {
         {/* Header */}
 
         <div className="bg-slate-800 p-8 flex flex-col items-center text-white">
-          {/* Future Employee Photo */}
-
-          <div className="w-32 h-32 rounded-full bg-white text-slate-700 flex items-center justify-center text-5xl font-bold shadow-lg">
-            {employee.name.charAt(0).toUpperCase()}
-          </div>
+          {employee.photo ? (
+            <img
+              src={employee.photo}
+              alt={employee.name}
+              className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
+            />
+          ) : (
+            <div className="w-32 h-32 rounded-full bg-white text-slate-700 flex items-center justify-center text-5xl font-bold shadow-lg">
+              {employee.name.charAt(0).toUpperCase()}
+            </div>
+          )}
 
           <h1 className="text-3xl font-bold mt-5">{employee.name}</h1>
 
@@ -105,8 +111,28 @@ export default function EmployeeDetails() {
             <InfoCard title="Designation" value={employee.designation} />
 
             <InfoCard
+              title="Email Address"
+              value={employee.email || "Not Provided"}
+            />
+
+            <InfoCard
+              title="Phone Number"
+              value={employee.phone || "Not Provided"}
+            />
+
+            <InfoCard
               title="Status"
               value={employee.is_active ? "Active" : "Inactive"}
+            />
+
+            <InfoCard
+              title="Created On"
+              value={new Date(employee.created_at).toLocaleDateString()}
+            />
+
+            <InfoCard
+              title="Last Updated"
+              value={new Date(employee.updated_at).toLocaleDateString()}
             />
           </div>
         </div>
@@ -117,10 +143,12 @@ export default function EmployeeDetails() {
 
 function InfoCard({ title, value }) {
   return (
-    <div className="border rounded-xl p-5 bg-gray-50 hover:shadow-md transition">
-      <p className="text-sm text-gray-500">{title}</p>
+    <div className="border rounded-xl p-5 bg-gray-50 hover:shadow-md transition duration-200">
+      <p className="text-sm text-gray-500 font-medium">{title}</p>
 
-      <h3 className="text-lg font-semibold mt-2">{value}</h3>
+      <h3 className="text-lg font-semibold text-gray-800 mt-2 break-words">
+        {value}
+      </h3>
     </div>
   );
 }

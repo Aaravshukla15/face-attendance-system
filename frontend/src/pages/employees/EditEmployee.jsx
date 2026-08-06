@@ -17,6 +17,8 @@ export default function EditEmployee() {
     name: "",
     department: "",
     designation: "",
+    email: "",
+    phone: "",
     is_active: true,
   });
 
@@ -30,6 +32,8 @@ export default function EditEmployee() {
           name: data.name,
           department: data.department,
           designation: data.designation,
+          email: data.email || "",
+          phone: data.phone || "",
           is_active: data.is_active,
         });
       } catch (error) {
@@ -97,6 +101,7 @@ export default function EditEmployee() {
             name="employee_id"
             value={formData.employee_id}
             onChange={handleChange}
+            readOnly
           />
 
           <InputField
@@ -117,6 +122,18 @@ export default function EditEmployee() {
             label="Designation"
             name="designation"
             value={formData.designation}
+            onChange={handleChange}
+          />
+          <InputField
+            label="Email Address"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+          />
+          <InputField
+            label="Phone Number"
+            name="phone"
+            value={formData.phone}
             onChange={handleChange}
           />
 
@@ -142,17 +159,27 @@ export default function EditEmployee() {
   );
 }
 
-function InputField({ label, name, value, onChange }) {
+function InputField({
+  label,
+  name,
+  value,
+  onChange,
+  type = "text",
+  readOnly = false,
+}) {
   return (
     <div>
       <label className="block font-semibold mb-2">{label}</label>
 
       <input
-        type="text"
+        type={type}
         name={name}
         value={value}
         onChange={onChange}
-        className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        readOnly={readOnly}
+        className={`w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+          readOnly ? "bg-gray-100 cursor-not-allowed" : ""
+        }`}
       />
     </div>
   );

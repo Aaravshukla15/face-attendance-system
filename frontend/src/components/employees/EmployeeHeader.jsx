@@ -1,6 +1,9 @@
 import { Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export default function EmployeeHeader() {
+  const navigate = useNavigate();
+
   return (
     <div className="flex items-center justify-between mb-8">
       <div>
@@ -11,7 +14,10 @@ export default function EmployeeHeader() {
         </p>
       </div>
 
-      <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg font-medium transition">
+      <button
+        onClick={() => navigate(`/employees/add`)}
+        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg font-medium transition"
+      >
         <Plus size={18} />
         Add Employee
       </button>

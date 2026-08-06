@@ -8,6 +8,9 @@ export default function AddEmployee() {
 
   const [preview, setPreview] = useState(null);
 
+  const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+
   const [formData, setFormData] = useState({
     name: "",
     department: "",
@@ -38,10 +41,53 @@ export default function AddEmployee() {
         [name]: type === "checkbox" ? checked : value,
       }));
     }
+
+    setErrors((prev) => ({
+      ...prev,
+      [name]: "",
+    }));
+  };
+
+  const validateForm = () => {
+    let newErrors = {};
+
+    if (!formData.name.trim()) newErrors.name = "Full Name is required.";
+
+    if (!formData.department.trim())
+      newErrors.department = "Department is required.";
+
+    if (!formData.designation.trim())
+      newErrors.designation = "Designation is required.";
+
+    if (!formData.email.trim()) {
+      newErrors.email = "Email is required.";
+    } else if (
+      !/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(formData.email)
+    ) {
+      newErrors.email = "Enter a valid email address.";
+    }
+
+    if (!formData.phone.trim()) {
+      newErrors.phone = "Phone Number is required.";
+    } else if (!/^\d{10}$/.test(formData.phone)) {
+      newErrors.phone = "Phone Number must contain exactly 10 digits.";
+    }
+
+    if (!formData.photo) {
+      newErrors.photo = "Employee photo is required.";
+    }
+
+    setErrors(newErrors);
+
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!validateForm()) return;
+
+    setSaving(true);
 
     try {
       const data = new FormData();
@@ -56,12 +102,35 @@ export default function AddEmployee() {
 
       await createEmployee(data);
 
-      alert("Employee Created Successfully");
+      alert("Employee created successfully.");
+
+      setFormData({
+        name: "",
+        department: "",
+        designation: "",
+        email: "",
+        phone: "",
+        photo: null,
+        is_active: true,
+      });
+
+      setPreview(null);
 
       navigate("/employees");
     } catch (error) {
       console.error(error);
-      alert("Failed to create employee.");
+
+      if (error.response?.data) {
+        const backendErrors = Object.values(error.response.data)
+          .flat()
+          .join("\n");
+
+        alert(backendErrors);
+      } else {
+        alert("Something went wrong while creating the employee.");
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -84,6 +153,7 @@ export default function AddEmployee() {
             name="name"
             value={formData.name}
             onChange={handleChange}
+            error={errors.name}
           />
 
           <InputField
@@ -91,6 +161,7 @@ export default function AddEmployee() {
             name="department"
             value={formData.department}
             onChange={handleChange}
+            error={errors.department}
           />
 
           <InputField
@@ -98,13 +169,16 @@ export default function AddEmployee() {
             name="designation"
             value={formData.designation}
             onChange={handleChange}
+            error={errors.designation}
           />
 
           <InputField
             label="Email"
             name="email"
+            type="email"
             value={formData.email}
             onChange={handleChange}
+            error={errors.email}
           />
 
           <InputField
@@ -112,6 +186,7 @@ export default function AddEmployee() {
             name="phone"
             value={formData.phone}
             onChange={handleChange}
+            error={errors.phone}
           />
 
           <div className="md:col-span-2">
@@ -136,6 +211,10 @@ export default function AddEmployee() {
                 name="photo"
                 onChange={handleChange}
               />
+
+              {errors.photo && (
+                <p className="text-red-500 text-sm mt-2">{errors.photo}</p>
+              )}
             </div>
           </div>
 
@@ -154,9 +233,14 @@ export default function AddEmployee() {
           <div className="md:col-span-2">
             <button
               type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg"
+              disabled={saving}
+              className={`px-8 py-3 rounded-lg text-white font-medium transition ${
+                saving
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700"
+              }`}
             >
-              Save Employee
+              {saving ? "Saving..." : "Save Employee"}
             </button>
           </div>
         </form>
@@ -165,18 +249,22 @@ export default function AddEmployee() {
   );
 }
 
-function InputField({ label, name, value, onChange }) {
+function InputField({ label, name, value, onChange, error, type = "text" }) {
   return (
     <div>
       <label className="block font-semibold mb-2">{label}</label>
 
       <input
-        type="text"
+        type={type}
         name={name}
         value={value}
         onChange={onChange}
-        className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className={`w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 ${
+          error ? "border-red-500 focus:ring-red-400" : "focus:ring-blue-500"
+        }`}
       />
+
+      {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
     </div>
   );
 }
