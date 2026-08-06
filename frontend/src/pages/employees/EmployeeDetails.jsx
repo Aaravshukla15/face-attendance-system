@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Pencil } from "lucide-react";
-import { getEmployeeById } from "../../services/employeeService";
+import {
+  getEmployeeById,
+  toggleEmployeeStatus,
+} from "../../services/employeeService";
 
 export default function EmployeeDetails() {
   const { id } = useParams();
@@ -9,6 +12,7 @@ export default function EmployeeDetails() {
 
   const [employee, setEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [statusLoading, setStatusLoading] = useState(false);
 
   useEffect(() => {
     const fetchEmployee = async () => {
@@ -24,6 +28,38 @@ export default function EmployeeDetails() {
 
     fetchEmployee();
   }, [id]);
+
+  const handleToggleStatus = async () => {
+    const action = employee.is_active ? "deactivate" : "activate";
+
+    const confirmAction = window.confirm(
+      `Are you sure you want to ${action} ${employee.name}?`,
+    );
+
+    if (!confirmAction) return;
+
+    try {
+      setStatusLoading(true);
+
+      const response = await toggleEmployeeStatus(employee.id);
+
+      setEmployee((prev) => ({
+        ...prev,
+        is_active: response.is_active,
+      }));
+
+      alert(
+        `Employee ${
+          response.is_active ? "activated" : "deactivated"
+        } successfully.`,
+      );
+    } catch (error) {
+      console.error(error);
+      alert("Failed to update employee status.");
+    } finally {
+      setStatusLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -47,7 +83,7 @@ export default function EmployeeDetails() {
     <div className="max-w-6xl mx-auto">
       {/* Top Buttons */}
 
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
         <button
           onClick={() => navigate("/employees")}
           className="flex items-center gap-2 bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg transition"
@@ -56,13 +92,31 @@ export default function EmployeeDetails() {
           Back
         </button>
 
-        <button
-          onClick={() => navigate(`/employees/edit/${employee.id}`)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition"
-        >
-          <Pencil size={18} />
-          Edit
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => navigate(`/employees/edit/${employee.id}`)}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition"
+          >
+            <Pencil size={18} />
+            Edit
+          </button>
+
+          <button
+            onClick={handleToggleStatus}
+            disabled={statusLoading}
+            className={`px-4 py-2 rounded-lg text-white transition ${
+              employee.is_active
+                ? "bg-red-600 hover:bg-red-700"
+                : "bg-green-600 hover:bg-green-700"
+            } ${statusLoading ? "opacity-60 cursor-not-allowed" : ""}`}
+          >
+            {statusLoading
+              ? "Updating..."
+              : employee.is_active
+                ? "Deactivate"
+                : "Activate"}
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
@@ -81,9 +135,13 @@ export default function EmployeeDetails() {
             </div>
           )}
 
-          <h1 className="text-3xl font-bold mt-5">{employee.name}</h1>
+          <h1 className="text-3xl font-bold mt-5 text-center">
+            {employee.name}
+          </h1>
 
-          <p className="text-slate-300 mt-2">{employee.designation}</p>
+          <p className="text-slate-300 mt-2 text-center">
+            {employee.designation}
+          </p>
 
           <span
             className={`mt-4 px-4 py-2 rounded-full font-semibold ${
@@ -127,12 +185,12 @@ export default function EmployeeDetails() {
 
             <InfoCard
               title="Created On"
-              value={new Date(employee.created_at).toLocaleDateString()}
+              value={new Date(employee.created_at).toLocaleString()}
             />
 
             <InfoCard
               title="Last Updated"
-              value={new Date(employee.updated_at).toLocaleDateString()}
+              value={new Date(employee.updated_at).toLocaleString()}
             />
           </div>
         </div>
@@ -147,7 +205,7 @@ function InfoCard({ title, value }) {
       <p className="text-sm text-gray-500 font-medium">{title}</p>
 
       <h3 className="text-lg font-semibold text-gray-800 mt-2 break-words">
-        {value}
+        {value || "-"}
       </h3>
     </div>
   );

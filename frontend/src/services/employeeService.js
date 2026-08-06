@@ -31,3 +31,10 @@ export const createEmployee = async (employeeData) => {
 
   return response.data;
 };
+
+// Toggle Employee Active / Inactive Status
+export const toggleEmployeeStatus = async (id) => {
+  const response = await api.patch(`employees/${id}/toggle-status/`);
+
+  return response.data;
+};

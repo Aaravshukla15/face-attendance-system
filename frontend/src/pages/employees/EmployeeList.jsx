@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import EmployeeHeader from "../../components/employees/EmployeeHeader";
-import { getEmployees } from "../../services/employeeService";
+import {
+  getEmployees,
+  toggleEmployeeStatus,
+} from "../../services/employeeService";
 import { useNavigate } from "react-router-dom";
 import { Eye, Pencil } from "lucide-react";
 
@@ -23,6 +26,29 @@ export default function EmployeeList() {
   const [previous, setPrevious] = useState(null);
 
   const navigate = useNavigate();
+
+  const handleToggleStatus = async (employee) => {
+    const action = employee.is_active ? "deactivate" : "activate";
+
+    const confirmAction = window.confirm(
+      `Are you sure you want to ${action} ${employee.name}?`,
+    );
+
+    if (!confirmAction) return;
+
+    try {
+      await toggleEmployeeStatus(employee.id);
+
+      setEmployees((prev) =>
+        prev.map((emp) =>
+          emp.id === employee.id ? { ...emp, is_active: !emp.is_active } : emp,
+        ),
+      );
+    } catch (error) {
+      console.error(error);
+      alert("Failed to update employee status.");
+    }
+  };
 
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -185,6 +211,17 @@ export default function EmployeeList() {
                         title="Edit Employee"
                       >
                         <Pencil size={18} />
+                      </button>
+
+                      <button
+                        onClick={() => handleToggleStatus(employee)}
+                        className={`text-white px-3 py-2 rounded-lg ${
+                          employee.is_active
+                            ? "bg-red-600 hover:bg-red-700"
+                            : "bg-green-600 hover:bg-green-700"
+                        }`}
+                      >
+                        {employee.is_active ? "Deactivate" : "Activate"}
                       </button>
                     </div>
                   </td>
