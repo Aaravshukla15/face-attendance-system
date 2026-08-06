@@ -10,6 +10,7 @@ import EmployeeList from "../pages/employees/EmployeeList";
 import Attendance from "../pages/attendance/Attendance";
 import Reports from "../pages/reports/Reports";
 import Settings from "../pages/settings/Settings";
+import EmployeeDetails from "../pages/employees/EmployeeDetails";
 
 export default function AppRoutes() {
   return (
@@ -31,6 +32,8 @@ export default function AppRoutes() {
           <Route path="/dashboard" element={<Dashboard />} />
 
           <Route path="/employees" element={<EmployeeList />} />
+
+          <Route path="/employees/:id" element={<EmployeeDetails />} />
 
           <Route path="/attendance" element={<Attendance />} />
 

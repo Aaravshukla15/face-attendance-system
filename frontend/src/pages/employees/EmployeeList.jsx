@@ -1,17 +1,38 @@
 import { useEffect, useState } from "react";
 import EmployeeHeader from "../../components/employees/EmployeeHeader";
 import { getEmployees } from "../../services/employeeService";
+import { useNavigate } from "react-router-dom";
 
 export default function EmployeeList() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [search, setSearch] = useState("");
+
+  const [page, setPage] = useState(1);
+
+  const [count, setCount] = useState(0);
+
+  const [next, setNext] = useState(null);
+
+  const [previous, setPrevious] = useState(null);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
-        const data = await getEmployees(search);
+        setLoading(true);
+
+        const data = await getEmployees(search, page);
+
         setEmployees(data.results);
+
+        setCount(data.count);
+
+        setNext(data.next);
+
+        setPrevious(data.previous);
       } catch (error) {
         console.error(error);
       } finally {
@@ -20,7 +41,7 @@ export default function EmployeeList() {
     };
 
     fetchEmployees();
-  }, [search]);
+  }, [search, page]);
 
   if (loading) {
     return <h2>Loading Employees...</h2>;
@@ -30,18 +51,21 @@ export default function EmployeeList() {
     <div>
       <EmployeeHeader />
 
-      {/* Search Box */}
+      {/* Search */}
       <div className="bg-white rounded-xl shadow p-4 mb-6">
         <input
           type="text"
           placeholder="Search employee..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
           className="w-full border rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
-      {/* Employee Table */}
+      {/* Table */}
       <div className="bg-white rounded-xl shadow overflow-hidden">
         <table className="min-w-full">
           <thead>
@@ -83,7 +107,10 @@ export default function EmployeeList() {
 
                 <td className="p-3">
                   <div className="flex gap-2">
-                    <button className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">
+                    <button
+                      onClick={() => navigate(`/employees/${employee.id}`)}
+                      className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
+                    >
                       View
                     </button>
 
@@ -96,6 +123,41 @@ export default function EmployeeList() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination */}
+      <div className="flex justify-between items-center mt-6">
+        <p className="text-gray-600">
+          Total Employees: <strong>{count}</strong>
+        </p>
+
+        <div className="flex gap-3">
+          <button
+            disabled={!previous}
+            onClick={() => setPage((prev) => prev - 1)}
+            className={`px-4 py-2 rounded ${
+              previous
+                ? "bg-gray-700 text-white hover:bg-gray-800"
+                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+            }`}
+          >
+            Previous
+          </button>
+
+          <span className="flex items-center font-semibold">Page {page}</span>
+
+          <button
+            disabled={!next}
+            onClick={() => setPage((prev) => prev + 1)}
+            className={`px-4 py-2 rounded ${
+              next
+                ? "bg-blue-600 text-white hover:bg-blue-700"
+                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+            }`}
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
   );
