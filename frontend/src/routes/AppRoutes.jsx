@@ -6,6 +6,7 @@ import Dashboard from "../pages/dashboard/Dashboard";
 import ProtectedRoute from "../components/ProtectedRoute";
 import DashboardLayout from "../layouts/DashboardLayout";
 
+import Home from "../pages/home/Home";
 import EmployeeList from "../pages/employees/EmployeeList";
 import EmployeeDetails from "../pages/employees/EmployeeDetails";
 import EditEmployee from "../pages/employees/EditEmployee";
@@ -22,7 +23,9 @@ export default function AppRoutes() {
       <Routes>
         {/* Public Routes */}
 
-        <Route path="/" element={<Login />} />
+        <Route path="/" element={<Home />} />
+
+        <Route path="/admin-login" element={<Login />} />
 
         <Route path="/attendance/record" element={<RecordAttendance />} />
 

@@ -1,8 +1,12 @@
 from rest_framework import generics, filters, status
 from django_filters.rest_framework import DjangoFilterBackend
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+
 from .models import Employee
 from .serializers import EmployeeSerializer
-from .face_utils import generate_face_encoding
+from .face_utils import generate_face_encoding, recognize_employee
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
@@ -86,4 +90,69 @@ class EmployeeToggleStatusAPIView(APIView):
             return Response(
                 {"error": "Employee not found."},
                 status=status.HTTP_404_NOT_FOUND,
+            )
+
+
+class FaceRecognitionAPIView(APIView):
+
+    def post(self, request):
+        image = request.FILES.get("image")
+
+        if not image:
+            return Response(
+                {"error": "No image provided."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            # Temporarily save the captured image
+            file_path = default_storage.save(
+                f"temp/attendance_{image.name}",
+                ContentFile(image.read()),
+            )
+
+            full_path = default_storage.path(file_path)
+
+            # Recognize employee
+            employee = recognize_employee(full_path)
+
+            # Delete temporary image
+            default_storage.delete(file_path)
+
+            if employee is None:
+                return Response(
+                    {
+                        "matched": False,
+                        "message": "Face not recognized.",
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
+            return Response(
+                {
+                    "matched": True,
+                    "message": "Employee recognized successfully.",
+                    "employee": {
+                        "id": employee.id,
+                        "employee_id": employee.employee_id,
+                        "name": employee.name,
+                        "department": employee.department,
+                        "designation": employee.designation,
+                    },
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as error:
+            print(
+                "Face recognition error:",
+                error
+            )
+
+            return Response(
+                {
+                    "matched": False,
+                    "error": "Face recognition failed.",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
