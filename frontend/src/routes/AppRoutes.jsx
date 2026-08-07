@@ -12,6 +12,7 @@ import EditEmployee from "../pages/employees/EditEmployee";
 import AddEmployee from "../pages/employees/AddEmployee";
 
 import Attendance from "../pages/attendance/Attendance";
+import RecordAttendance from "../pages/attendance/RecordAttendance";
 import Reports from "../pages/reports/Reports";
 import Settings from "../pages/settings/Settings";
 
@@ -22,6 +23,8 @@ export default function AppRoutes() {
         {/* Public Routes */}
 
         <Route path="/" element={<Login />} />
+
+        <Route path="/attendance/record" element={<RecordAttendance />} />
 
         {/* Protected Routes */}
 
