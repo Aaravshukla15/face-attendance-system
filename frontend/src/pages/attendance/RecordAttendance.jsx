@@ -78,7 +78,10 @@ export default function RecordAttendance() {
       setRecognizing(true);
       setRecognitionMessage("");
 
-      // Create a canvas from the current camera frame
+      // --------------------------------
+      // STEP 1: CAPTURE CAMERA FRAME
+      // --------------------------------
+
       const canvas = document.createElement("canvas");
 
       canvas.width = videoRef.current.videoWidth;
@@ -92,7 +95,10 @@ export default function RecordAttendance() {
 
       context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
 
-      // Convert camera frame into image blob
+      // --------------------------------
+      // STEP 2: CONVERT FRAME TO IMAGE
+      // --------------------------------
+
       const blob = await new Promise((resolve) => {
         canvas.toBlob(resolve, "image/jpeg", 0.9);
       });
@@ -101,13 +107,15 @@ export default function RecordAttendance() {
         throw new Error("Unable to capture camera image.");
       }
 
-      // Create multipart form data
+      // --------------------------------
+      // STEP 3: FACE RECOGNITION
+      // --------------------------------
+
       const formData = new FormData();
 
       formData.append("image", blob, "face.jpg");
 
-      // Send image to Django face recognition API
-      const response = await fetch(
+      const recognitionResponse = await fetch(
         "http://127.0.0.1:8000/api/employees/recognize/",
         {
           method: "POST",
@@ -115,30 +123,120 @@ export default function RecordAttendance() {
         },
       );
 
-      const data = await response.json();
+      const recognitionData = await recognitionResponse.json();
 
-      console.log("Face recognition response:", data);
+      console.log("Face recognition response:", recognitionData);
 
-      if (!response.ok) {
-        throw new Error(data.error || "Face recognition failed.");
+      if (!recognitionResponse.ok) {
+        throw new Error(recognitionData.error || "Face recognition failed.");
       }
 
-      if (data.matched) {
+      // --------------------------------
+      // FACE NOT RECOGNIZED
+      // --------------------------------
+
+      if (!recognitionData.matched) {
         setRecognitionMessage(
-          `Employee recognized: ${data.employee.name} (${data.employee.employee_id})`,
+          recognitionData.message || "Face not recognized. Please try again.",
         );
-      } else {
-        setRecognitionMessage(data.message || "Face not recognized.");
-      }
-    } catch (error) {
-      console.error("Face recognition error:", error);
 
-      setRecognitionMessage("Unable to recognize face. Please try again.");
+        return;
+      }
+
+      // --------------------------------
+      // STEP 4: EMPLOYEE RECOGNIZED
+      // --------------------------------
+
+      const employee = recognitionData.employee;
+
+      console.log("Recognized employee:", employee);
+
+      setRecognitionMessage(
+        `Face recognized: ${employee.name} (${employee.employee_id})`,
+      );
+
+      // --------------------------------
+      // STEP 5: RECORD ATTENDANCE
+      // --------------------------------
+
+      const attendanceResponse = await fetch(
+        "http://127.0.0.1:8000/api/attendance/record/",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            employee_id: employee.employee_id,
+          }),
+        },
+      );
+
+      const attendanceData = await attendanceResponse.json();
+
+      console.log("Attendance response:", attendanceData);
+
+      if (!attendanceResponse.ok) {
+        throw new Error(
+          attendanceData.message || "Unable to record attendance.",
+        );
+      }
+
+      // --------------------------------
+      // CHECK-IN SUCCESS
+      // --------------------------------
+
+      if (attendanceData.action === "check_in") {
+        setRecognitionMessage(
+          `Welcome ${employee.name}! Check-in recorded successfully.`,
+        );
+
+        return;
+      }
+
+      // --------------------------------
+      // CHECK-OUT SUCCESS
+      // --------------------------------
+
+      if (attendanceData.action === "check_out") {
+        setRecognitionMessage(
+          `Goodbye ${employee.name}! Check-out recorded successfully.`,
+        );
+
+        return;
+      }
+
+      // --------------------------------
+      // ATTENDANCE ALREADY COMPLETED
+      // --------------------------------
+
+      if (attendanceData.action === "already_completed") {
+        setRecognitionMessage(
+          `${employee.name}, your attendance is already completed for today.`,
+        );
+
+        return;
+      }
+
+      // --------------------------------
+      // FALLBACK
+      // --------------------------------
+
+      setRecognitionMessage(
+        attendanceData.message || "Attendance processed successfully.",
+      );
+    } catch (error) {
+      console.error("Attendance recognition error:", error);
+
+      setRecognitionMessage(
+        error.message || "Unable to process attendance. Please try again.",
+      );
     } finally {
       setRecognizing(false);
     }
   };
 
+  // Stop camera when leaving the page
   useEffect(() => {
     return () => {
       if (streamRef.current) {
@@ -259,7 +357,7 @@ export default function RecordAttendance() {
                 </p>
               </div>
 
-              {/* Recognition Message */}
+              {/* Recognition / Attendance Message */}
 
               {recognitionMessage && (
                 <div className="mt-4 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg p-3 text-center text-sm">
