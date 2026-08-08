@@ -1,8 +1,10 @@
 from django.utils import timezone
 
-from rest_framework import generics, status
+from rest_framework import generics, status, filters
 from rest_framework.views import APIView
 from rest_framework.response import Response
+
+from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import Attendance
 from .serializers import AttendanceSerializer
@@ -12,6 +14,36 @@ from employees.models import Employee
 class AttendanceListCreateAPIView(generics.ListCreateAPIView):
     queryset = Attendance.objects.select_related("employee").all()
     serializer_class = AttendanceSerializer
+
+    # Filtering, searching and ordering
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+
+    filterset_fields = {
+        "date": ["exact", "gte", "lte"],
+        "employee__employee_id": ["exact"],
+        "employee__department": ["exact"],
+    }
+
+    search_fields = [
+        "employee__employee_id",
+        "employee__name",
+        "employee__department",
+        "employee__designation",
+    ]
+
+    ordering_fields = [
+        "date",
+        "check_in",
+        "check_out",
+        "employee__employee_id",
+        "employee__name",
+    ]
+
+    ordering = ["-date", "-check_in"]
 
 
 class AttendanceRetrieveUpdateDestroyAPIView(
@@ -111,7 +143,10 @@ class RecordAttendanceAPIView(APIView):
         if attendance.check_out is None:
 
             attendance.check_out = current_time
-            attendance.save(update_fields=["check_out", "updated_at"])
+
+            attendance.save(
+                update_fields=["check_out", "updated_at"]
+            )
 
             return Response(
                 {

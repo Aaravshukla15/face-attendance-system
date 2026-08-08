@@ -13,6 +13,11 @@ class AttendanceSerializer(serializers.ModelSerializer):
         read_only=True,
     )
 
+    employee_department = serializers.CharField(
+        source="employee.department",
+        read_only=True,
+    )
+
     class Meta:
         model = Attendance
         fields = [
@@ -20,6 +25,7 @@ class AttendanceSerializer(serializers.ModelSerializer):
             "employee",
             "employee_id",
             "employee_name",
+            "employee_department",
             "date",
             "check_in",
             "check_out",

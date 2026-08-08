@@ -6,3 +6,12 @@ export const getTodayAttendance = async () => {
 
   return response.data;
 };
+
+// Get attendance records with filters
+export const getAttendance = async (params = {}) => {
+  const response = await api.get("attendance/", {
+    params,
+  });
+
+  return response.data;
+};
