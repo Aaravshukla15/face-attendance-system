@@ -57,12 +57,12 @@ export default function EmployeeList() {
 
         const data = await getEmployees(page, search);
 
-        setEmployees(data.results);
-        setCount(data.count);
+        setEmployees(data.results || []);
+        setCount(data.count || 0);
         setNext(data.next);
         setPrevious(data.previous);
       } catch (error) {
-        console.error(error);
+        console.error("Failed to fetch employees:", error);
       } finally {
         setLoading(false);
       }

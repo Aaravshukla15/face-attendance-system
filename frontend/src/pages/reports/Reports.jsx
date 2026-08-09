@@ -149,9 +149,7 @@ export default function Reports() {
 
   return (
     <div>
-      {/* -------------------------------- */}
       {/* Header */}
-      {/* -------------------------------- */}
 
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800">Reports</h1>
@@ -161,9 +159,7 @@ export default function Reports() {
         </p>
       </div>
 
-      {/* -------------------------------- */}
       {/* Error */}
-      {/* -------------------------------- */}
 
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 text-red-700 rounded-lg p-4">
@@ -171,9 +167,7 @@ export default function Reports() {
         </div>
       )}
 
-      {/* -------------------------------- */}
       {/* Report Cards */}
-      {/* -------------------------------- */}
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* DAILY ATTENDANCE REPORT */}

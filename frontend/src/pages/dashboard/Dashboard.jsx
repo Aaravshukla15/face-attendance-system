@@ -10,8 +10,10 @@ import {
 } from "lucide-react";
 
 export default function Dashboard() {
-  const [employees, setEmployees] = useState([]);
   const [attendance, setAttendance] = useState([]);
+
+  // Real total employee count from API
+  const [totalEmployeeCount, setTotalEmployeeCount] = useState(0);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -44,11 +46,19 @@ export default function Dashboard() {
 
         if (cancelled) return;
 
-        setEmployees(
+        // --------------------------------
+        // REAL TOTAL EMPLOYEE COUNT
+        // --------------------------------
+
+        setTotalEmployeeCount(
           Array.isArray(employeesData)
-            ? employeesData
-            : employeesData.results || [],
+            ? employeesData.length
+            : employeesData.count || 0,
         );
+
+        // --------------------------------
+        // TODAY'S ATTENDANCE DATA
+        // --------------------------------
 
         setAttendance(
           Array.isArray(attendanceData)
@@ -78,7 +88,8 @@ export default function Dashboard() {
     setRefreshKey((value) => value + 1);
   };
 
-  const totalEmployees = employees.length;
+  // Use API count instead of paginated employee array length
+  const totalEmployees = totalEmployeeCount;
 
   const presentToday = attendance.length;
 

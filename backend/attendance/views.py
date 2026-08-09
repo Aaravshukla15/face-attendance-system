@@ -63,12 +63,11 @@ class AttendanceRetrieveUpdateDestroyAPIView(
     serializer_class = AttendanceSerializer
 
 
-# ============================================================
 # TODAY'S ATTENDANCE
-# ============================================================
 
 class TodayAttendanceAPIView(generics.ListAPIView):
     serializer_class = AttendanceSerializer
+    pagination_class = None
 
     def get_queryset(self):
         today = timezone.localdate()
@@ -77,12 +76,10 @@ class TodayAttendanceAPIView(generics.ListAPIView):
             "employee"
         ).filter(
             date=today
-        )
+        ).order_by("employee__employee_id")
 
 
-# ============================================================
 # RECORD ATTENDANCE
-# ============================================================
 
 class RecordAttendanceAPIView(APIView):
 
@@ -121,9 +118,7 @@ class RecordAttendanceAPIView(APIView):
             date=today,
         ).first()
 
-        # --------------------------------
         # FIRST SCAN → CHECK IN
-        # --------------------------------
 
         if attendance is None:
 
@@ -154,9 +149,7 @@ class RecordAttendanceAPIView(APIView):
                 status=status.HTTP_201_CREATED,
             )
 
-        # --------------------------------
         # SECOND SCAN → CHECK OUT
-        # --------------------------------
 
         if attendance.check_out is None:
 
@@ -187,9 +180,7 @@ class RecordAttendanceAPIView(APIView):
                 status=status.HTTP_200_OK,
             )
 
-        # --------------------------------
         # THIRD SCAN → ALREADY COMPLETED
-        # --------------------------------
 
         return Response(
             {
@@ -212,10 +203,7 @@ class RecordAttendanceAPIView(APIView):
             status=status.HTTP_200_OK,
         )
 
-
-# ============================================================
 # DAILY ATTENDANCE EXCEL REPORT
-# ============================================================
 
 class DailyAttendanceReportAPIView(APIView):
 
@@ -509,9 +497,7 @@ class MonthlyAttendanceReportAPIView(APIView):
                 ]
             )
 
-        # --------------------------------
         # Column Widths
-        # --------------------------------
 
         column_widths = {
             "A": 15,
@@ -527,15 +513,11 @@ class MonthlyAttendanceReportAPIView(APIView):
         for column, width in column_widths.items():
             worksheet.column_dimensions[column].width = width
 
-        # --------------------------------
         # Freeze Header
-        # --------------------------------
 
         worksheet.freeze_panes = "A2"
 
-        # --------------------------------
         # Excel Response
-        # --------------------------------
 
         response = HttpResponse(
             content_type=(

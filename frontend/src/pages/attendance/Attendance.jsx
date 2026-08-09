@@ -1,42 +1,68 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   RefreshCw,
   CalendarDays,
-  Users,
   UserCheck,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import { getAttendance } from "../../services/attendanceService";
-import { getEmployees } from "../../services/employeeService";
+import { getAllEmployeesForFilters } from "../../services/employeeService";
 
 export default function Attendance() {
+  // ============================================================
+  // STATE
+  // ============================================================
+
   const [attendance, setAttendance] = useState([]);
   const [employees, setEmployees] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [employeesLoading, setEmployeesLoading] = useState(true);
-  const [error, setError] = useState("");
 
-  // --------------------------------
-  // Filters
-  // --------------------------------
+  const [error, setError] = useState("");
+  const [employeesError, setEmployeesError] = useState("");
+
+  // ============================================================
+  // FILTERS
+  // ============================================================
 
   const [date, setDate] = useState("");
   const [department, setDepartment] = useState("All Departments");
   const [employee, setEmployee] = useState("All Employees");
   const [search, setSearch] = useState("");
 
-  // --------------------------------
-  // Refresh
-  // --------------------------------
+  // Debounced search value
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // ============================================================
+  // PAGINATION
+  // ============================================================
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [hasPreviousPage, setHasPreviousPage] = useState(false);
+
+  // ============================================================
+  // REFRESH
+  // ============================================================
 
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // --------------------------------
-  // Fetch Employees
-  // --------------------------------
+  // ============================================================
+  // LOAD EMPLOYEES FOR FILTERS
+  //
+  // IMPORTANT:
+  // This runs ONLY once when Attendance page loads.
+  //
+  // It does NOT depend on refreshKey.
+  // Therefore clicking Refresh will NOT repeatedly call
+  // /api/employees/.
+  // ============================================================
 
   useEffect(() => {
     let cancelled = false;
@@ -44,15 +70,26 @@ export default function Attendance() {
     const loadEmployees = async () => {
       try {
         setEmployeesLoading(true);
+        setEmployeesError("");
 
-        const data = await getEmployees();
+        const data = await getAllEmployeesForFilters();
 
-        if (!cancelled) {
-          setEmployees(Array.isArray(data) ? data : data.results || []);
+        if (cancelled) return;
+
+        if (Array.isArray(data)) {
+          setEmployees(data);
+        } else {
+          setEmployees([]);
         }
       } catch (error) {
         if (!cancelled) {
-          console.error("Failed to load employees:", error);
+          console.error(
+            "Failed to load employees for attendance filters:",
+            error,
+          );
+
+          setEmployees([]);
+          setEmployeesError("Unable to load employees for attendance filters.");
         }
       } finally {
         if (!cancelled) {
@@ -68,10 +105,25 @@ export default function Attendance() {
     };
   }, []);
 
-  // --------------------------------
-  // Fetch Attendance
-  // Whenever filters change
-  // --------------------------------
+  // ============================================================
+  // DEBOUNCE SEARCH
+  //
+  // Prevents an API request for every single character typed.
+  // ============================================================
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 400);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [search]);
+
+  // ============================================================
+  // LOAD ATTENDANCE
+  // ============================================================
 
   useEffect(() => {
     let cancelled = false;
@@ -81,50 +133,89 @@ export default function Attendance() {
         setLoading(true);
         setError("");
 
-        const params = {};
+        // --------------------------------------------------------
+        // Build API parameters
+        // --------------------------------------------------------
 
-        // -----------------------------
-        // Date
-        // -----------------------------
+        const params = {
+          page: currentPage,
+        };
+
+        // --------------------------------------------------------
+        // DATE FILTER
+        // --------------------------------------------------------
 
         if (date) {
           params.date = date;
         }
 
-        // -----------------------------
-        // Department
-        // -----------------------------
+        // --------------------------------------------------------
+        // DEPARTMENT FILTER
+        // --------------------------------------------------------
 
         if (department !== "All Departments") {
           params.employee__department = department;
         }
 
-        // -----------------------------
-        // Employee
-        // -----------------------------
+        // --------------------------------------------------------
+        // EMPLOYEE FILTER
+        // --------------------------------------------------------
 
         if (employee !== "All Employees") {
           params.employee__employee_id = employee;
         }
 
-        // -----------------------------
-        // Search
-        // -----------------------------
+        // --------------------------------------------------------
+        // SEARCH FILTER
+        // --------------------------------------------------------
 
-        if (search.trim()) {
-          params.search = search.trim();
+        if (debouncedSearch) {
+          params.search = debouncedSearch;
         }
 
         console.log("Attendance filters:", params);
 
+        // --------------------------------------------------------
+        // API CALL
+        // --------------------------------------------------------
+
         const data = await getAttendance(params);
 
-        if (!cancelled) {
-          setAttendance(Array.isArray(data) ? data : data.results || []);
+        if (cancelled) return;
+
+        // --------------------------------------------------------
+        // NON-PAGINATED RESPONSE
+        // --------------------------------------------------------
+
+        if (Array.isArray(data)) {
+          setAttendance(data);
+          setTotalRecords(data.length);
+
+          setHasNextPage(false);
+          setHasPreviousPage(currentPage > 1);
+
+          return;
         }
+
+        // --------------------------------------------------------
+        // PAGINATED DRF RESPONSE
+        // --------------------------------------------------------
+
+        const results = Array.isArray(data?.results) ? data.results : [];
+
+        setAttendance(results);
+        setTotalRecords(data?.count || 0);
+
+        setHasNextPage(Boolean(data?.next));
+        setHasPreviousPage(Boolean(data?.previous));
       } catch (error) {
         if (!cancelled) {
           console.error("Failed to load attendance:", error);
+
+          setAttendance([]);
+          setTotalRecords(0);
+          setHasNextPage(false);
+          setHasPreviousPage(false);
 
           setError("Unable to load attendance records.");
         }
@@ -140,39 +231,54 @@ export default function Attendance() {
     return () => {
       cancelled = true;
     };
-  }, [date, department, employee, search, refreshKey]);
+  }, [date, department, employee, debouncedSearch, currentPage, refreshKey]);
 
-  // --------------------------------
-  // Departments
-  // --------------------------------
+  // ============================================================
+  // DEPARTMENTS
+  //
+  // Created from the complete employee list.
+  // ============================================================
 
-  const departments = [
-    ...new Set(employees.map((item) => item.department).filter(Boolean)),
-  ].sort();
+  const departments = useMemo(() => {
+    const departmentSet = new Set();
 
-  // --------------------------------
-  // Employees Based On Department
-  // --------------------------------
+    employees.forEach((item) => {
+      if (item?.department) {
+        departmentSet.add(item.department);
+      }
+    });
 
-  const filteredEmployees =
-    department === "All Departments"
-      ? employees
-      : employees.filter((item) => item.department === department);
+    return Array.from(departmentSet).sort((a, b) => a.localeCompare(b));
+  }, [employees]);
 
-  // --------------------------------
-  // Clear Filters
-  // --------------------------------
+  // ============================================================
+  // EMPLOYEES BASED ON SELECTED DEPARTMENT
+  // ============================================================
+
+  const filteredEmployees = useMemo(() => {
+    if (department === "All Departments") {
+      return employees;
+    }
+
+    return employees.filter((item) => item?.department === department);
+  }, [employees, department]);
+
+  // ============================================================
+  // CLEAR FILTERS
+  // ============================================================
 
   const clearFilters = () => {
     setDate("");
     setDepartment("All Departments");
     setEmployee("All Employees");
     setSearch("");
+    setDebouncedSearch("");
+    setCurrentPage(1);
   };
 
-  // --------------------------------
-  // Check If Any Filter Is Active
-  // --------------------------------
+  // ============================================================
+  // CHECK ACTIVE FILTERS
+  // ============================================================
 
   const hasActiveFilters =
     date !== "" ||
@@ -180,17 +286,21 @@ export default function Attendance() {
     employee !== "All Employees" ||
     search.trim() !== "";
 
-  // --------------------------------
-  // Refresh Attendance
-  // --------------------------------
+  // ============================================================
+  // REFRESH ATTENDANCE
+  //
+  // Employee list is NOT reloaded.
+  // Only attendance API is refreshed.
+  // ============================================================
 
   const handleRefresh = () => {
+    setCurrentPage(1);
     setRefreshKey((current) => current + 1);
   };
 
-  // --------------------------------
-  // Format Date
-  // --------------------------------
+  // ============================================================
+  // FORMAT DATE
+  // ============================================================
 
   const formatDate = (value) => {
     if (!value) {
@@ -206,73 +316,110 @@ export default function Attendance() {
     });
   };
 
-  // --------------------------------
-  // Format Time
-  // --------------------------------
+  // ============================================================
+  // FORMAT TIME
+  // ============================================================
 
   const formatTime = (dateTime) => {
     if (!dateTime) {
       return "—";
     }
 
-    return new Date(dateTime).toLocaleTimeString([], {
+    return new Date(dateTime).toLocaleTimeString("en-IN", {
       hour: "2-digit",
       minute: "2-digit",
     });
   };
 
-  // --------------------------------
-  // Get Department
-  // --------------------------------
+  // ============================================================
+  // GET EMPLOYEE ID
+  // ============================================================
+
+  const getEmployeeId = (record) => {
+    return record?.employee_id || record?.employee?.employee_id || "—";
+  };
+
+  // ============================================================
+  // FIND EMPLOYEE
+  //
+  // This connects Attendance record → Employee record.
+  // ============================================================
+
+  const findEmployee = (record) => {
+    const employeeId = getEmployeeId(record);
+
+    if (!employeeId || employeeId === "—") {
+      return null;
+    }
+
+    return employees.find((item) => item?.employee_id === employeeId) || null;
+  };
+
+  // ============================================================
+  // GET EMPLOYEE NAME
+  // ============================================================
+
+  const getEmployeeName = (record) => {
+    // First preference: nested employee data
+    if (record?.employee?.name) {
+      return record.employee.name;
+    }
+
+    // Second preference: serializer-provided name
+    if (record?.employee_name) {
+      return record.employee_name;
+    }
+
+    // Third preference: find employee locally
+    const matchedEmployee = findEmployee(record);
+
+    if (matchedEmployee?.name) {
+      return matchedEmployee.name;
+    }
+
+    return "Unknown Employee";
+  };
+
+  // ============================================================
+  // GET DEPARTMENT
+  //
+  // This fixes the "—" issue in your screenshot.
+  // ============================================================
 
   const getDepartment = (record) => {
-    // If serializer returns nested employee object
-    if (record.employee?.department) {
+    // First preference: nested employee department
+    if (record?.employee?.department) {
       return record.employee.department;
     }
 
-    // If serializer directly returns department
-    if (record.department) {
+    // Second preference: serializer-provided department
+    if (record?.department) {
       return record.department;
     }
 
-    // Fallback: find employee in employee list
-    const matchedEmployee = employees.find(
-      (item) => item.employee_id === record.employee_id,
-    );
+    // Third preference: match employee using employee_id
+    const matchedEmployee = findEmployee(record);
 
-    return matchedEmployee?.department || "—";
+    if (matchedEmployee?.department) {
+      return matchedEmployee.department;
+    }
+
+    return "—";
   };
 
-  // --------------------------------
-  // Get Employee ID
-  // --------------------------------
-
-  const getEmployeeId = (record) => {
-    return record.employee_id || record.employee?.employee_id || "—";
-  };
-
-  // --------------------------------
-  // Get Employee Name
-  // --------------------------------
-
-  const getEmployeeName = (record) => {
-    return record.employee_name || record.employee?.name || "Unknown Employee";
-  };
-
-  // --------------------------------
-  // Status
-  // --------------------------------
+  // ============================================================
+  // STATUS
+  // ============================================================
 
   const getStatus = (record) => {
-    if (record.check_out) {
+    if (record?.check_out) {
       return {
         text: "Completed",
         className: "bg-blue-100 text-blue-700",
       };
     }
 
-    if (record.check_in) {
+    if (record?.check_in) {
       return {
         text: "Checked In",
         className: "bg-green-100 text-green-700",
@@ -285,25 +432,31 @@ export default function Attendance() {
     };
   };
 
-  // --------------------------------
-  // Summary
-  // --------------------------------
+  // ============================================================
+  // PAGINATION
+  // ============================================================
 
-  const totalAttendance = attendance.length;
+  const handlePreviousPage = () => {
+    if (hasPreviousPage && !loading) {
+      setCurrentPage((page) => Math.max(page - 1, 1));
+    }
+  };
 
-  const checkedIn = attendance.filter((record) => record.check_in).length;
+  const handleNextPage = () => {
+    if (hasNextPage && !loading) {
+      setCurrentPage((page) => page + 1);
+    }
+  };
 
-  const checkedOut = attendance.filter((record) => record.check_out).length;
-
-  // --------------------------------
-  // Render
-  // --------------------------------
+  // ============================================================
+  // RENDER
+  // ============================================================
 
   return (
     <div>
-      {/* -------------------------------- */}
-      {/* Header */}
-      {/* -------------------------------- */}
+      {/* ====================================================== */}
+      {/* HEADER */}
+      {/* ====================================================== */}
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
@@ -315,6 +468,7 @@ export default function Attendance() {
         </div>
 
         <button
+          type="button"
           onClick={handleRefresh}
           disabled={loading}
           className="self-start sm:self-auto flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition disabled:opacity-50"
@@ -324,13 +478,15 @@ export default function Attendance() {
         </button>
       </div>
 
-      {/* -------------------------------- */}
-      {/* Filters */}
-      {/* -------------------------------- */}
+      {/* ====================================================== */}
+      {/* FILTERS */}
+      {/* ====================================================== */}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 sm:p-6 mb-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Date */}
+          {/* ================================================== */}
+          {/* DATE */}
+          {/* ================================================== */}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -346,7 +502,10 @@ export default function Attendance() {
               <input
                 type="date"
                 value={date}
-                onChange={(event) => setDate(event.target.value)}
+                onChange={(event) => {
+                  setDate(event.target.value);
+                  setCurrentPage(1);
+                }}
                 className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -356,7 +515,9 @@ export default function Attendance() {
             </p>
           </div>
 
-          {/* Department */}
+          {/* ================================================== */}
+          {/* DEPARTMENT */}
+          {/* ================================================== */}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -367,9 +528,14 @@ export default function Attendance() {
               value={department}
               onChange={(event) => {
                 setDepartment(event.target.value);
+
+                // Reset employee whenever department changes
                 setEmployee("All Employees");
+
+                setCurrentPage(1);
               }}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={employeesLoading}
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
             >
               <option value="All Departments">All Departments</option>
 
@@ -381,7 +547,9 @@ export default function Attendance() {
             </select>
           </div>
 
-          {/* Employee */}
+          {/* ================================================== */}
+          {/* EMPLOYEE */}
+          {/* ================================================== */}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -390,21 +558,29 @@ export default function Attendance() {
 
             <select
               value={employee}
-              onChange={(event) => setEmployee(event.target.value)}
+              onChange={(event) => {
+                setEmployee(event.target.value);
+                setCurrentPage(1);
+              }}
               disabled={employeesLoading}
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
             >
               <option value="All Employees">All Employees</option>
 
               {filteredEmployees.map((item) => (
-                <option key={item.id} value={item.employee_id}>
+                <option
+                  key={item.id || item.employee_id}
+                  value={item.employee_id}
+                >
                   {item.name} ({item.employee_id})
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Search */}
+          {/* ================================================== */}
+          {/* SEARCH */}
+          {/* ================================================== */}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -420,7 +596,10 @@ export default function Attendance() {
               <input
                 type="text"
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setCurrentPage(1);
+                }}
                 placeholder="Employee name or ID"
                 className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
@@ -428,7 +607,15 @@ export default function Attendance() {
           </div>
         </div>
 
-        {/* Clear Filters */}
+        {/* Employee loading/error message */}
+
+        {employeesError && (
+          <div className="mt-4 text-sm text-red-600">{employeesError}</div>
+        )}
+
+        {/* ================================================== */}
+        {/* CLEAR FILTERS */}
+        {/* ================================================== */}
 
         {hasActiveFilters && (
           <div className="flex justify-end mt-5 pt-5 border-t border-gray-100">
@@ -444,9 +631,9 @@ export default function Attendance() {
         )}
       </div>
 
-      {/* -------------------------------- */}
-      {/* Error */}
-      {/* -------------------------------- */}
+      {/* ====================================================== */}
+      {/* ERROR */}
+      {/* ====================================================== */}
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-6">
@@ -454,72 +641,14 @@ export default function Attendance() {
         </div>
       )}
 
-      {/* -------------------------------- */}
-      {/* Summary */}
-      {/* -------------------------------- */}
-
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
-        {/* Total */}
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Total Attendance</p>
-
-              <p className="text-3xl font-bold text-gray-800 mt-2">
-                {loading ? "—" : totalAttendance}
-              </p>
-            </div>
-
-            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-              <Users size={24} className="text-blue-600" />
-            </div>
-          </div>
-        </div>
-
-        {/* Checked In */}
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Checked In</p>
-
-              <p className="text-3xl font-bold text-green-600 mt-2">
-                {loading ? "—" : checkedIn}
-              </p>
-            </div>
-
-            <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-              <UserCheck size={24} className="text-green-600" />
-            </div>
-          </div>
-        </div>
-
-        {/* Checked Out */}
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Checked Out</p>
-
-              <p className="text-3xl font-bold text-blue-600 mt-2">
-                {loading ? "—" : checkedOut}
-              </p>
-            </div>
-
-            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-              <UserCheck size={24} className="text-blue-600" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* -------------------------------- */}
-      {/* Attendance Table */}
-      {/* -------------------------------- */}
+      {/* ====================================================== */}
+      {/* ATTENDANCE TABLE */}
+      {/* ====================================================== */}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        {/* Table Header */}
+        {/* ================================================== */}
+        {/* TABLE HEADER */}
+        {/* ================================================== */}
 
         <div className="px-5 sm:px-6 py-5 border-b border-gray-200">
           <h2 className="text-xl font-bold text-gray-800">
@@ -533,113 +662,171 @@ export default function Attendance() {
           </p>
         </div>
 
-        {/* Loading */}
+        {/* ================================================== */}
+        {/* LOADING */}
+        {/* ================================================== */}
 
         {loading ? (
           <div className="p-10 text-center text-gray-500">
             Loading attendance...
           </div>
         ) : attendance.length === 0 ? (
+          /* ================================================== */
+          /* EMPTY */
+          /* ================================================== */
+
           <div className="p-10 text-center">
             <UserCheck size={40} className="mx-auto text-gray-300" />
 
             <p className="mt-3 text-gray-500">No attendance records found.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1000px]">
-              <thead>
-                <tr className="bg-gray-50 text-left">
-                  <th className="px-5 sm:px-6 py-4 text-xs font-semibold text-gray-600 uppercase">
-                    Date
-                  </th>
+          <>
+            {/* ================================================== */}
+            {/* TABLE */}
+            {/* ================================================== */}
 
-                  <th className="px-5 sm:px-6 py-4 text-xs font-semibold text-gray-600 uppercase">
-                    Employee ID
-                  </th>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1000px]">
+                <thead>
+                  <tr className="bg-gray-50 text-left">
+                    <th className="px-5 sm:px-6 py-4 text-xs font-semibold text-gray-600 uppercase">
+                      Date
+                    </th>
 
-                  <th className="px-5 sm:px-6 py-4 text-xs font-semibold text-gray-600 uppercase">
-                    Employee Name
-                  </th>
+                    <th className="px-5 sm:px-6 py-4 text-xs font-semibold text-gray-600 uppercase">
+                      Employee ID
+                    </th>
 
-                  <th className="px-5 sm:px-6 py-4 text-xs font-semibold text-gray-600 uppercase">
-                    Department
-                  </th>
+                    <th className="px-5 sm:px-6 py-4 text-xs font-semibold text-gray-600 uppercase">
+                      Employee Name
+                    </th>
 
-                  <th className="px-5 sm:px-6 py-4 text-xs font-semibold text-gray-600 uppercase">
-                    Check In
-                  </th>
+                    <th className="px-5 sm:px-6 py-4 text-xs font-semibold text-gray-600 uppercase">
+                      Department
+                    </th>
 
-                  <th className="px-5 sm:px-6 py-4 text-xs font-semibold text-gray-600 uppercase">
-                    Check Out
-                  </th>
+                    <th className="px-5 sm:px-6 py-4 text-xs font-semibold text-gray-600 uppercase">
+                      Check In
+                    </th>
 
-                  <th className="px-5 sm:px-6 py-4 text-xs font-semibold text-gray-600 uppercase">
-                    Status
-                  </th>
-                </tr>
-              </thead>
+                    <th className="px-5 sm:px-6 py-4 text-xs font-semibold text-gray-600 uppercase">
+                      Check Out
+                    </th>
 
-              <tbody>
-                {attendance.map((record) => {
-                  const status = getStatus(record);
+                    <th className="px-5 sm:px-6 py-4 text-xs font-semibold text-gray-600 uppercase">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
 
-                  return (
-                    <tr
-                      key={record.id}
-                      className="border-t border-gray-200 hover:bg-gray-50 transition"
-                    >
-                      {/* Date */}
+                <tbody>
+                  {attendance.map((record) => {
+                    const status = getStatus(record);
 
-                      <td className="px-5 sm:px-6 py-4 text-sm text-gray-700">
-                        {formatDate(record.date)}
-                      </td>
+                    return (
+                      <tr
+                        key={record.id}
+                        className="border-t border-gray-200 hover:bg-gray-50 transition"
+                      >
+                        {/* DATE */}
 
-                      {/* Employee ID */}
+                        <td className="px-5 sm:px-6 py-4 text-sm text-gray-700">
+                          {formatDate(record.date)}
+                        </td>
 
-                      <td className="px-5 sm:px-6 py-4 text-sm font-medium text-gray-800">
-                        {getEmployeeId(record)}
-                      </td>
+                        {/* EMPLOYEE ID */}
 
-                      {/* Employee Name */}
+                        <td className="px-5 sm:px-6 py-4 text-sm font-medium text-gray-800">
+                          {getEmployeeId(record)}
+                        </td>
 
-                      <td className="px-5 sm:px-6 py-4 text-sm text-gray-700">
-                        {getEmployeeName(record)}
-                      </td>
+                        {/* EMPLOYEE NAME */}
 
-                      {/* Department */}
+                        <td className="px-5 sm:px-6 py-4 text-sm text-gray-700">
+                          {getEmployeeName(record)}
+                        </td>
 
-                      <td className="px-5 sm:px-6 py-4 text-sm text-gray-700">
-                        {getDepartment(record)}
-                      </td>
+                        {/* DEPARTMENT */}
 
-                      {/* Check In */}
+                        <td className="px-5 sm:px-6 py-4 text-sm text-gray-700">
+                          {getDepartment(record)}
+                        </td>
 
-                      <td className="px-5 sm:px-6 py-4 text-sm text-gray-700">
-                        {formatTime(record.check_in)}
-                      </td>
+                        {/* CHECK IN */}
 
-                      {/* Check Out */}
+                        <td className="px-5 sm:px-6 py-4 text-sm text-gray-700">
+                          {formatTime(record.check_in)}
+                        </td>
 
-                      <td className="px-5 sm:px-6 py-4 text-sm text-gray-700">
-                        {formatTime(record.check_out)}
-                      </td>
+                        {/* CHECK OUT */}
 
-                      {/* Status */}
+                        <td className="px-5 sm:px-6 py-4 text-sm text-gray-700">
+                          {formatTime(record.check_out)}
+                        </td>
 
-                      <td className="px-5 sm:px-6 py-4">
-                        <span
-                          className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${status.className}`}
-                        >
-                          {status.text}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        {/* STATUS */}
+
+                        <td className="px-5 sm:px-6 py-4">
+                          <span
+                            className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${status.className}`}
+                          >
+                            {status.text}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* ================================================== */}
+            {/* PAGINATION */}
+            {/* ================================================== */}
+
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-5 sm:px-6 py-4 border-t border-gray-200">
+              <p className="text-sm text-gray-500">
+                Page{" "}
+                <span className="font-medium text-gray-700">{currentPage}</span>
+                {totalRecords > 0 && (
+                  <>
+                    {" "}
+                    · Total records:{" "}
+                    <span className="font-medium text-gray-700">
+                      {totalRecords}
+                    </span>
+                  </>
+                )}
+              </p>
+
+              <div className="flex items-center gap-2">
+                {/* PREVIOUS */}
+
+                <button
+                  type="button"
+                  onClick={handlePreviousPage}
+                  disabled={!hasPreviousPage || loading}
+                  className="flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft size={17} />
+                  Previous
+                </button>
+
+                {/* NEXT */}
+
+                <button
+                  type="button"
+                  onClick={handleNextPage}
+                  disabled={!hasNextPage || loading}
+                  className="flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Next
+                  <ChevronRight size={17} />
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>
